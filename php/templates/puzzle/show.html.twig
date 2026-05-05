@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Úloha {{ puzzle.id }}{% endblock %}
+
+{% block body %}
+    <div class="card">
+        <p><a href="{{ path('puzzle_index') }}">← zpět na seznam</a></p>
+
+        <div class="board-wrap" {{ stimulus_controller('puzzle', {
+            fen: puzzle.fen,
+            moves: puzzle.moves,
+            userSide: puzzle.userSide
+        }) }}>
+            <div>
+                <div {{ stimulus_target('puzzle', 'board') }} style="width:100%; aspect-ratio:1/1;"></div>
+                <p id="status" {{ stimulus_target('puzzle', 'status') }}>Načítám…</p>
+                <button type="button" class="secondary" {{ stimulus_action('puzzle', 'reset') }}>↻ Restart</button>
+            </div>
+            <div>
+                <h2 style="margin-top:0">#{{ puzzle.id }}</h2>
+                <p><strong>Rating:</strong> {{ puzzle.rating }} <span class="muted">(±{{ puzzle.ratingDeviation }})</span></p>
+                <p><strong>Popularita:</strong> {{ puzzle.popularity }} · <strong>Sehráno:</strong> {{ puzzle.nbPlays }}</p>
+                <p><strong>Na tahu:</strong> {{ puzzle.userSide == 'w' ? 'Bílý' : 'Černý' }}</p>
+                {% if puzzle.themes|length %}
+                    <p><strong>Motivy:</strong><br>{% for t in puzzle.themes %}<span class="badge">{{ t.name }}</span>{% endfor %}</p>
+                {% endif %}
+                {% if puzzle.openings|length %}
+                    <p><strong>Zahájení:</strong><br>{% for o in puzzle.openings %}<span class="badge opening">{{ o.name }}</span>{% endfor %}</p>
+                {% endif %}
+                {% if puzzle.gameUrl %}
+                    <p><a class="btn" href="{{ puzzle.gameUrl }}" target="_blank" rel="noopener">Lichess partie ↗</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

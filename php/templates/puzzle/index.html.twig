@@ -1,0 +1,79 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Úlohy{% endblock %}
+
+{% block body %}
+    <div class="card">
+        <form method="get" class="filters">
+            <div>
+                <label for="q">PuzzleId prefix</label>
+                <input type="text" id="q" name="q" value="{{ filter.q }}" placeholder="00sH...">
+            </div>
+            <div>
+                <label for="min_rating">Rating min</label>
+                <input type="number" id="min_rating" name="min_rating" value="{{ filter.minRating }}" placeholder="800">
+            </div>
+            <div>
+                <label for="max_rating">Rating max</label>
+                <input type="number" id="max_rating" name="max_rating" value="{{ filter.maxRating }}" placeholder="2400">
+            </div>
+            <div>
+                <label for="themes">Motivy</label>
+                <select id="themes" name="themes[]" multiple>
+                    {% for t in themes %}
+                        <option value="{{ t.id }}" {% if t.id in filter.themeIds %}selected{% endif %}>{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="openings">Zahájení</label>
+                <select id="openings" name="openings[]" multiple>
+                    {% for o in openings %}
+                        <option value="{{ o.id }}" {% if o.id in filter.openingIds %}selected{% endif %}>{{ o.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <button type="submit">Filtrovat</button>
+                <a class="btn" href="{{ path('puzzle_index') }}">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        {% if page.items is empty %}
+            <p class="muted">Žádné úlohy neodpovídají kritériím.</p>
+        {% else %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Rating</th>
+                        <th>Motivy</th>
+                        <th>Zahájení</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in page.items %}
+                        <tr>
+                            <td><a href="{{ path('puzzle_show', {id: p.id}) }}"><code>{{ p.id }}</code></a></td>
+                            <td>{{ p.rating }}</td>
+                            <td>{% for t in p.themes %}<span class="badge">{{ t.name }}</span>{% endfor %}</td>
+                            <td>{% for o in p.openings %}<span class="badge opening">{{ o.name }}</span>{% endfor %}</td>
+                            <td><a class="btn" href="{{ path('puzzle_show', {id: p.id}) }}">Řešit →</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="pagination">
+                {% if page.nextCursor %}
+                    <a class="btn" href="{{ path('puzzle_index', filter.toQuery|merge({after: page.nextCursor})) }}">Další →</a>
+                {% else %}
+                    <span class="muted">Konec výsledků.</span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
