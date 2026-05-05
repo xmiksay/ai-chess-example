@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Šachové hádanky</title>
+<script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/chessground@9.1.1/assets/chessground.base.css" />
+<link rel="stylesheet" href="https://unpkg.com/chessground@9.1.1/assets/chessground.brown.css" />
+<link rel="stylesheet" href="https://unpkg.com/chessground@9.1.1/assets/chessground.cburnett.css" />
+<style>
+  cg-board { background-color: #b58863; }
+  .board-wrap { width: min(560px, 92vw); aspect-ratio: 1 / 1; }
+  .puzzle-row.active { background: #2563eb; color: white; }
+  .puzzle-row { cursor: pointer; }
+  .puzzle-row:hover { background: #e5e7eb; }
+  .puzzle-row.active:hover { background: #1d4ed8; }
+  .pulse-good { animation: pulse-good 0.6s; }
+  .pulse-bad { animation: pulse-bad 0.6s; }
+  @keyframes pulse-good { 0% { background: #bbf7d0; } 100% { background: transparent; } }
+  @keyframes pulse-bad { 0% { background: #fecaca; } 100% { background: transparent; } }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<div id="app" class="max-w-7xl mx-auto p-4">
+  <header class="mb-4">
+    <h1 class="text-2xl font-bold">Šachové hádanky</h1>
+    <p class="text-sm text-gray-600">
+      <span v-if="meta">Databáze: {{ meta.total_puzzles.toLocaleString('cs') }} hádanek · max {{ meta.hard_limit }} výsledků na dotaz</span>
+      <span v-else>Načítám…</span>
+    </p>
+  </header>
+
+  <section class="bg-white rounded-lg shadow p-4 mb-4">
+    <h2 class="font-semibold mb-2">Filtr</h2>
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-3 text-sm">
+      <label class="flex flex-col">
+        <span class="text-gray-600">Rating od</span>
+        <input v-model.number="filter.rating_min" type="number" class="border rounded px-2 py-1" :placeholder="meta?.rating_min ?? ''" />
+      </label>
+      <label class="flex flex-col">
+        <span class="text-gray-600">Rating do</span>
+        <input v-model.number="filter.rating_max" type="number" class="border rounded px-2 py-1" :placeholder="meta?.rating_max ?? ''" />
+      </label>
+      <label class="flex flex-col">
+        <span class="text-gray-600">Téma</span>
+        <select v-model="filter.theme" class="border rounded px-2 py-1">
+          <option value="">— libovolné —</option>
+          <option v-for="t in (meta?.themes ?? [])" :key="t" :value="t">{{ t }}</option>
+        </select>
+      </label>
+      <label class="flex flex-col">
+        <span class="text-gray-600">Otevření (název)</span>
+        <input v-model="filter.opening" type="text" placeholder="např. Sicilian_Defense" class="border rounded px-2 py-1" />
+      </label>
+      <label class="flex flex-col">
+        <span class="text-gray-600">Hledat (id/téma)</span>
+        <input v-model="filter.q" type="text" placeholder="klíčové slovo" class="border rounded px-2 py-1" />
+      </label>
+      <label class="flex flex-col">
+        <span class="text-gray-600">Řadit</span>
+        <select v-model="filter.sort" class="border rounded px-2 py-1">
+          <option value="">— pořadí v DB —</option>
+          <option value="random">Náhodně</option>
+          <option value="rating">Rating ↑</option>
+          <option value="rating_desc">Rating ↓</option>
+          <option value="popularity">Popularita</option>
+          <option value="plays">Nejvíce her</option>
+        </select>
+      </label>
+    </div>
+    <div class="flex items-center gap-3 mt-3">
+      <label class="flex items-center gap-2 text-sm">
+        <span class="text-gray-600">Limit</span>
+        <input v-model.number="filter.limit" type="number" min="1" :max="meta?.hard_limit ?? 500" class="border rounded px-2 py-1 w-24" />
+      </label>
+      <button @click="doSearch" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded">Hledat</button>
+      <button @click="resetFilter" class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded">Reset</button>
+      <span v-if="searchInfo" class="text-sm text-gray-600">{{ searchInfo }}</span>
+    </div>
+  </section>
+
+  <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="lg:col-span-1 bg-white rounded-lg shadow overflow-hidden">
+      <div class="p-3 border-b font-semibold">Výsledky ({{ results.length }})</div>
+      <div class="max-h-[640px] overflow-y-auto">
+        <div v-if="!results.length" class="p-4 text-sm text-gray-500">Žádné výsledky. Zkus změnit filtr.</div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-xs uppercase text-gray-500 sticky top-0">
+            <tr>
+              <th class="text-left px-3 py-2">ID</th>
+              <th class="text-right px-3 py-2">Rating</th>
+              <th class="text-left px-3 py-2">Témata</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in results" :key="p.id"
+                class="puzzle-row border-t"
+                :class="{ active: selected?.id === p.id }"
+                @click="selectPuzzle(p)">
+              <td class="px-3 py-2 font-mono text-xs">{{ p.id }}</td>
+              <td class="px-3 py-2 text-right">{{ p.rating }}</td>
+              <td class="px-3 py-2 text-xs truncate max-w-[200px]" :title="p.themes">{{ p.themes }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 bg-white rounded-lg shadow p-4">
+      <div v-if="!selected" class="text-gray-500 text-sm">Vyber hádanku ze seznamu vlevo.</div>
+      <div v-else>
+        <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-3">
+          <h2 class="text-lg font-semibold">Hádanka <span class="font-mono">{{ selected.id }}</span></h2>
+          <span class="text-sm text-gray-600">Rating {{ selected.rating }} · {{ selected.popularity }} pop · {{ selected.nb_plays.toLocaleString('cs') }} her</span>
+          <a :href="selected.game_url" target="_blank" rel="noreferrer" class="text-sm text-blue-600 hover:underline">Lichess ↗</a>
+        </div>
+        <p class="text-xs text-gray-500 mb-2">{{ selected.themes }}<span v-if="selected.opening_tags"> · {{ selected.opening_tags }}</span></p>
+
+        <div class="flex flex-col md:flex-row gap-4">
+          <div class="board-wrap" ref="boardEl"></div>
+
+          <div class="flex-1 min-w-[200px]">
+            <div class="mb-3 p-3 rounded text-sm" :class="statusClass">
+              <div class="font-semibold">{{ statusTitle }}</div>
+              <div>{{ statusText }}</div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-3">
+              <button @click="resetPuzzle" class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm">↺ Restart</button>
+              <button @click="showHint" :disabled="solved" class="bg-yellow-100 hover:bg-yellow-200 disabled:opacity-50 px-3 py-1.5 rounded text-sm">💡 Nápověda</button>
+              <button @click="showSolution" :disabled="solved" class="bg-red-100 hover:bg-red-200 disabled:opacity-50 px-3 py-1.5 rounded text-sm">👁 Řešení</button>
+              <button @click="flipBoard" class="bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded text-sm">↕ Otočit</button>
+            </div>
+
+            <div class="text-xs text-gray-600">
+              <div class="mb-1"><strong>Tahy:</strong></div>
+              <div class="flex flex-wrap gap-1">
+                <span v-for="(m, i) in moveList" :key="i"
+                      class="px-1.5 py-0.5 rounded font-mono text-xs"
+                      :class="{ 'bg-green-200': i < movesPlayed, 'bg-gray-100': i >= movesPlayed }">
+                  {{ m }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+import { Chessground } from 'https://esm.sh/chessground@9.1.1';
+import { Chess } from 'https://esm.sh/chess.js@1.0.0';
+
+const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
+
+createApp({
+  setup() {
+    const meta = ref(null);
+    const filter = reactive({
+      rating_min: 1500,
+      rating_max: 1800,
+      theme: 'mate',
+      opening: '',
+      q: '',
+      sort: 'random',
+      limit: 50,
+    });
+    const results = ref([]);
+    const searchInfo = ref('');
+    const selected = ref(null);
+    const boardEl = ref(null);
+
+    let cg = null;            // chessground instance
+    let chess = null;         // chess.js instance for current puzzle
+    const moveList = ref([]); // UCI moves for the puzzle
+    const movesPlayed = ref(0);
+    const status = reactive({ kind: 'idle', text: '' });
+    const solved = ref(false);
+    let userColor = 'white';
+    let orientation = 'white';
+
+    // --- API ---
+    async function loadMeta() {
+      const r = await fetch('/api/meta');
+      meta.value = await r.json();
+    }
+    async function doSearch() {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(filter)) {
+        if (v !== '' && v !== null && v !== undefined) params.set(k, String(v));
+      }
+      const r = await fetch('/api/search?' + params.toString());
+      const data = await r.json();
+      results.value = data.puzzles;
+      const hit = data.total_matches.toLocaleString('cs');
+      const back = data.returned.toLocaleString('cs');
+      searchInfo.value = data.truncated
+        ? `Nalezeno ${hit} (zobrazeno prvních ${back}, hard limit ${data.limit})`
+        : `Nalezeno ${hit}, zobrazeno ${back}`;
+      if (results.value.length && !results.value.find(p => p.id === selected.value?.id)) {
+        selectPuzzle(results.value[0]);
+      }
+    }
+    function resetFilter() {
+      Object.assign(filter, { rating_min: null, rating_max: null, theme: '', opening: '', q: '', sort: 'random', limit: 50 });
+    }
+
+    // --- Puzzle play ---
+    function legalDests(c) {
+      const dests = new Map();
+      c.moves({ verbose: true }).forEach(m => {
+        if (!dests.has(m.from)) dests.set(m.from, []);
+        dests.get(m.from).push(m.to);
+      });
+      return dests;
+    }
+
+    function turnColor(c) { return c.turn() === 'w' ? 'white' : 'black'; }
+
+    function refreshBoard({ animate = true } = {}) {
+      if (!cg || !chess) return;
+      cg.set({
+        fen: chess.fen(),
+        turnColor: turnColor(chess),
+        animation: { enabled: animate },
+        check: chess.inCheck(),
+        movable: {
+          color: solved.value ? undefined : userColor,
+          dests: legalDests(chess),
+        },
+      });
+    }
+
+    function setStatus(kind, text) {
+      status.kind = kind;
+      status.text = text;
+    }
+
+    async function selectPuzzle(p) {
+      selected.value = p;
+      solved.value = false;
+      chess = new Chess(p.fen);
+      moveList.value = p.moves.split(' ').filter(Boolean);
+      movesPlayed.value = 0;
+      // Computer plays the first move; user is the OPPOSITE side of fen-side-to-move
+      userColor = chess.turn() === 'w' ? 'black' : 'white';
+      orientation = userColor;
+      await nextTick();
+      mountGround();
+      setStatus('thinking', `Soupeř hraje… (Hraješ za ${userColor === 'white' ? 'bílého' : 'černého'}.)`);
+      setTimeout(playComputerMove, 600);
+    }
+
+    function mountGround() {
+      if (cg) { cg.destroy(); cg = null; }
+      if (!boardEl.value) return;
+      cg = Chessground(boardEl.value, {
+        fen: chess.fen(),
+        orientation,
+        turnColor: turnColor(chess),
+        movable: {
+          free: false,
+          color: undefined, // no input until computer's setup move plays
+          dests: legalDests(chess),
+          showDests: true,
+          events: { after: onUserMove },
+        },
+        animation: { enabled: true, duration: 200 },
+        highlight: { lastMove: true, check: true },
+        draggable: { showGhost: true },
+      });
+    }
+
+    function applyUci(uci) {
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length > 4 ? uci[4] : undefined;
+      return chess.move({ from, to, promotion });
+    }
+
+    function playComputerMove() {
+      if (!chess || movesPlayed.value >= moveList.value.length) return;
+      const uci = moveList.value[movesPlayed.value];
+      const m = applyUci(uci);
+      if (!m) return;
+      movesPlayed.value += 1;
+      refreshBoard();
+      if (movesPlayed.value >= moveList.value.length) {
+        solved.value = true;
+        setStatus('done', '🎉 Vyřešeno!');
+        return;
+      }
+      setStatus('your-turn', 'Tvůj tah – najdi nejlepší pokračování.');
+    }
+
+    function onUserMove(orig, dest, _meta) {
+      if (!chess || solved.value) return;
+      const expected = moveList.value[movesPlayed.value];
+      if (!expected) return;
+
+      // figure out promotion: if user moves pawn to last rank, default to queen
+      let uci = orig + dest;
+      const piece = chess.get(orig);
+      if (piece && piece.type === 'p' && (dest[1] === '8' || dest[1] === '1')) {
+        uci += 'q';
+      }
+
+      const isCorrect = uci === expected
+        || (uci.length === 4 && expected.length === 5 && uci === expected.slice(0, 4));
+
+      if (!isCorrect) {
+        setStatus('wrong', `Špatný tah (${uci}). Zkus to znovu.`);
+        // revert: chess.js wasn't mutated yet, just restore the board
+        refreshBoard({ animate: false });
+        flash('pulse-bad');
+        return;
+      }
+
+      const m = applyUci(expected);
+      if (!m) { refreshBoard({ animate: false }); return; }
+      movesPlayed.value += 1;
+      refreshBoard();
+      flash('pulse-good');
+
+      if (movesPlayed.value >= moveList.value.length) {
+        solved.value = true;
+        setStatus('done', '🎉 Vyřešeno!');
+        return;
+      }
+      setStatus('thinking', 'Soupeř odpovídá…');
+      setTimeout(playComputerMove, 500);
+    }
+
+    function flash(cls) {
+      if (!boardEl.value) return;
+      boardEl.value.classList.remove('pulse-good', 'pulse-bad');
+      void boardEl.value.offsetWidth;
+      boardEl.value.classList.add(cls);
+    }
+
+    function resetPuzzle() {
+      if (selected.value) selectPuzzle(selected.value);
+    }
+
+    function showHint() {
+      const next = moveList.value[movesPlayed.value];
+      if (!next) return;
+      const from = next.slice(0, 2);
+      cg?.set({ selected: from, lastMove: undefined });
+      setStatus('hint', `Nápověda: zahrej figurou z ${from}.`);
+    }
+
+    function showSolution() {
+      if (!chess || solved.value) return;
+      const playRest = () => {
+        if (movesPlayed.value >= moveList.value.length) {
+          solved.value = true;
+          setStatus('done', 'Řešení dohráno.');
+          return;
+        }
+        const m = applyUci(moveList.value[movesPlayed.value]);
+        if (m) {
+          movesPlayed.value += 1;
+          refreshBoard();
+        }
+        setTimeout(playRest, 450);
+      };
+      setStatus('solution', 'Přehrávám řešení…');
+      playRest();
+    }
+
+    function flipBoard() {
+      orientation = orientation === 'white' ? 'black' : 'white';
+      cg?.set({ orientation });
+    }
+
+    const statusTitle = computed(() => ({
+      idle: 'Připraveno',
+      thinking: 'Tah soupeře',
+      'your-turn': 'Tvůj tah',
+      wrong: 'Chyba',
+      hint: 'Nápověda',
+      solution: 'Řešení',
+      done: 'Hotovo',
+    })[status.kind] || '');
+    const statusText = computed(() => status.text);
+    const statusClass = computed(() => ({
+      idle: 'bg-gray-100 text-gray-800',
+      thinking: 'bg-blue-50 text-blue-900',
+      'your-turn': 'bg-amber-50 text-amber-900',
+      wrong: 'bg-red-50 text-red-900',
+      hint: 'bg-yellow-50 text-yellow-900',
+      solution: 'bg-purple-50 text-purple-900',
+      done: 'bg-green-50 text-green-900',
+    })[status.kind] || 'bg-gray-100');
+
+    onMounted(async () => {
+      await loadMeta();
+      await doSearch();
+    });
+
+    return {
+      meta, filter, results, searchInfo, selected, boardEl,
+      moveList, movesPlayed, solved,
+      statusTitle, statusText, statusClass,
+      doSearch, resetFilter, selectPuzzle,
+      resetPuzzle, showHint, showSolution, flipBoard,
+    };
+  },
+}).mount('#app');
+</script>
+</body>
+</html>
