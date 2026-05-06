@@ -1,76 +1,41 @@
 # CLAUDE.md — Chess Puzzles
 
-Webová aplikace pro řešení šachových hádanek z Lichess databáze. Backend v Rust/Axum, frontend Vue 3 SPA bez build kroku.
+Webová aplikace pro řešení šachových hádanek z Lichess databáze. Repo obsahuje **dvě paralelní implementace** stejné aplikace.
 
-## Build & Run
+## Layout
+
+```
+rust/   — Axum + Vue 3 SPA (CDN), CSV-in-RAM, JSON API
+php/    — Symfony 7 + Twig + Stimulus, SQLite, keyset pagination
+```
+
+Detailní dokumentace je v [`rust/README.md`](rust/README.md) a [`php/README.md`](php/README.md). Tento soubor jen orientuje.
+
+## Quick start
+
+### Rust
 
 ```bash
-cargo check              # kompilační kontrola (vždy po změně Rustu)
-cargo build --release    # produkční binárka → target/release/chess-puzzles
-cargo run --release      # build + spuštění
+cd rust
+cargo run --release
+# poslouchá na 0.0.0.0:3000, potřebuje lichess_db_puzzle.csv.zst v rust/
 ```
 
-Default bind je `0.0.0.0:3000`. Pro lokální vývoj typicky `--bind 127.0.0.1:3000`.
+### PHP
 
-## Architektura
-
+```bash
+cd php
+PHP_INI_SCAN_DIR=$PWD/.php-conf.d composer install --no-security-blocking
+PHP_INI_SCAN_DIR=$PWD/.php-conf.d php bin/console app:puzzles:import var/sample_puzzles.csv
+PHP_INI_SCAN_DIR=$PWD/.php-conf.d php -S 127.0.0.1:8765 -t public public/index.php
 ```
-src/main.rs          — Axum server, CSV loader, search handler (vše v jednom souboru)
-static/index.html    — Vue 3 SPA (CDN: vue, tailwind, chessground, chess.js)
-lichess_db_puzzle.csv.zst  — vstupní data (~296 MB komprimovaně, ~1 GB rozbalené)
-```
 
-### Klíčové konvence
+## Sdílená doménová konvence (Lichess)
 
-- **CSV se načítá při startu** přímo ze zstd streamu (`zstd::Decoder` nad `BufReader`). Veškerá data jsou v paměti po celou dobu běhu — `Vec<Puzzle>` s `Box<str>` fieldy.
-- **Hard limit 500** výsledků na search dotaz je definován jako `const HARD_LIMIT` v `main.rs`. Frontend tento limit zobrazuje (`/api/meta`).
-- **State** je `Arc<AppState>` obsahující `puzzles`, `by_id` (HashMap), `themes` (precomputed), `rating_min/max`.
-- **Filtrace** je lineární průchod přes všechny puzzly — pro 6M záznamů ~stovky ms v release buildu. Není potřeba index.
-- **Sort `random`** používá reservoir-style replacement během průchodu, aby se nemuselo držet všechno v paměti. Ostatní řazení sortí až výsledky stránky.
-
-### Frontend logika (Lichess puzzle konvence)
-
-První tah v `Moves` poli je **setup tah soupeře** — frontend ho přehraje automaticky. Uživatel pak hledá tah druhý. Po správném tahu uživatele přehraje frontend tah třetí (soupeř) a tak dále.
-
-- `userColor = chess.turn() === 'w' ? 'black' : 'white'` (opačná strana než FEN side-to-move)
-- Špatný tah: chess.js stav neaktualizujeme, jen se zavolá `cg.set({ fen: chess.fen() })` pro vrácení šachovnice
-- Promoce: defaultně dáma (`uci += 'q'` při tahu pěšcem na 1./8. řadu)
-- Validace UCI: porovnání stringu s očekávaným tahem, s tolerancí pro chybějící promoční písmeno
-
-### API
-
-- `GET /api/meta` — celkový počet, témata, rozsah ratingu, hard_limit
-- `GET /api/search?rating_min=&rating_max=&theme=&opening=&q=&sort=&limit=&offset=` — limit clampován na 500
-- `GET /api/puzzle/:id` — O(1) lookup přes HashMap
-
-## Závislosti
-
-Rust:
-- `axum` 0.7 — HTTP server
-- `tokio` — async runtime
-- `csv` + `serde` — parsing CSV
-- `zstd` — dekomprese vstupního souboru
-- `clap` — CLI parametry
-- `tracing` + `tracing-subscriber` — logy
-- `tower-http` — `ServeDir` pro statické soubory, `TraceLayer`
-
-Frontend (vše z CDN, žádný npm/build):
-- Vue 3.5.13 — `vue.global.prod.js` z unpkg
-- Tailwind CSS — Play CDN
-- chessground 9.1.1 — board rendering (z unpkg + esm.sh)
-- chess.js 1.0.0 — pravidla, FEN parsing, legal moves (z esm.sh)
+První tah v `Moves` poli je **setup tah soupeře** — frontend (Rust i PHP) ho přehraje automaticky. Uživatel pak hraje druhý tah, soupeř třetí, atd. `userColor` je opačná strana než FEN side-to-move. Platí pro obě implementace.
 
 ## Pracovní postup
 
-1. Po každé úpravě `src/main.rs`: `cargo check`
-2. Po větších změnách: `cargo build --release` a restart serveru
-3. Po úpravě `static/index.html`: pouze refresh prohlížeče
-4. Server načítá CSV ~7 s + indexace ~4 s — počítej s tím při restartech
-
-## Možná rozšíření
-
-- Trvalé indexy (theme → Vec<index>, rating bucket → Vec<index>) pro rychlejší filtraci
-- Persistence statistik uživatele (vyřešené hádanky, vlastní rating)
-- Multi-puzzle tréninkový mód (následující po vyřešení)
-- Promoce přes UI (místo automatické dámy)
-- Engine analýza (Stockfish via WASM) po vyřešení
+- Změna v `rust/`: `cd rust && cargo check` po každé úpravě Rustu, refresh prohlížeče po úpravě `static/index.html`.
+- Změna v `php/`: `PHP_INI_SCAN_DIR=$PWD/.php-conf.d php -S …` server běží, refresh stačí. Po změně schématu `php bin/console doctrine:schema:update --force` (viz `php/README.md`).
+- Nikdy needituj v root — vše je v subdirech. Root drží jen meta soubory (`README.md`, `CLAUDE.md`, `.gitignore`).
