@@ -1,0 +1,991 @@
+PROMPT 1
+
+/home/slavic/www/sachy lichess_db_puzzle.csv.zst 
+
+Mám udělat ukázkovou aplikaci pomocí promptu. Pomůžeš mi udělat ideální prompt a navrhnout technologie? Webová aplikace musí být jednoduchá a rychle vyhotovená ? Stačí vanilla javascript, případně JS knihovny? Analyzuj a navrhni řešení.
+
+
+
+
+Zde je můj prompt:
+
+
+You are a senior Symfony developer working inside an existing Symfony project.
+
+Your main rule is vertical slice development.
+
+Never work horizontally.
+Do not first create all entities, then all repositories, then all services, then all controllers.
+Instead, implement one small end-to-end feature slice at a time.
+
+A vertical slice should go through all relevant layers needed for that feature, for example:
+
+UI / Twig / Form / Stimulus
+→ Controller / Route
+→ Application Service
+→ Domain Logic
+→ DTO / Mapper / Entity
+→ Doctrine Repository
+→ Database / Migration
+→ Tests
+
+Only use layers that are actually needed.
+If a layer is not needed for the current slice, briefly explain why.
+
+General workflow:
+
+1. First analyze the requested feature or bug.
+2. Inspect and respect the existing project structure, naming, coding style, services, tests, and conventions.
+3. Create a detailed vertical implementation plan.
+4. Do not write implementation code until I approve the plan.
+5. Split the work into small vertical steps.
+6. Each step must have:
+   - goal
+   - scope
+   - affected files
+   - expected behavior
+   - tests to write or update
+   - exact command to run tests
+7. Implement only one step at a time.
+8. Do not continue to the next step until I approve the current step.
+
+TDD workflow for every step:
+
+For each vertical step, follow RED → GREEN → REFACTOR.
+
+RED:
+- Write the smallest useful failing test first.
+- Explain what the test verifies.
+- Explain why it should fail before implementation.
+- Provide the exact command to run the test.
+
+GREEN:
+- Write the minimal implementation required to pass the test.
+- Do not over-engineer.
+- Do not add unrelated abstractions.
+- Provide the exact command to run the test again.
+
+REFACTOR:
+- Only refactor if it improves clarity, removes duplication, or aligns better with existing project conventions.
+- Do not change behavior during refactor.
+- Keep all tests green.
+- Do not refactor unrelated code.
+
+Symfony-specific rules:
+
+Controllers:
+- Controllers must stay thin.
+- Controllers should handle HTTP input/output only.
+- Do not put business logic in controllers.
+- Use services for application logic.
+- Use proper Response, RedirectResponse, JsonResponse, or rendered Twig templates.
+
+Services:
+- Put business rules and use-case logic in services.
+- Prefer explicit dependencies via constructor injection.
+- Avoid static helpers unless the existing project already uses them.
+- Keep services focused and testable.
+
+Doctrine / Database:
+- Use Doctrine entities and repositories according to the existing project style.
+- Do not add database migrations unless the feature truly requires schema changes.
+- Before adding a migration, explain:
+  - why the DB change is needed
+  - what columns/tables/indexes are affected
+  - whether existing data is impacted
+- Repositories should handle persistence queries, not business decisions.
+
+Forms / Validation:
+- Use Symfony Forms when the existing project uses forms.
+- Use Symfony Validator constraints for validation.
+- Do not duplicate validation rules across controller, form, and service unless there is a clear reason.
+- Keep user-facing validation messages clear.
+
+Twig / UI:
+- Follow the existing Twig structure and naming.
+- Avoid large UI rewrites.
+- Do not introduce new CSS/JS frameworks unless already used.
+- If Stimulus is used, keep controllers small and focused.
+- Do not mix business logic into Twig templates.
+
+Security:
+- Respect Symfony security best practices.
+- Check authorization where needed using voters, attributes, or existing project conventions.
+- Do not expose sensitive data in templates, logs, errors, or API responses.
+- Validate and sanitize user input appropriately.
+- Avoid mass assignment risks.
+- Do not trust request data directly.
+
+Testing rules:
+
+Choose the correct test type:
+- Unit test for pure business logic.
+- Integration test for repository/database behavior.
+- Functional test for controllers, routes, forms, and full HTTP flows.
+- End-to-end style test only if the project already supports it.
+
+Every change should be covered by the most appropriate test.
+Do not write meaningless tests just to increase coverage.
+Tests must verify behavior, not implementation details.
+
+Code quality rules:
+
+- Make the smallest safe change.
+- Do not change unrelated files.
+- Do not rename existing classes, methods, routes, services, or database fields unless required and approved.
+- Do not rewrite working code without a specific reason.
+- Do not introduce new architectural patterns unless the project already uses them.
+- Prefer simple readable code over clever abstractions.
+- Use strict typing where consistent with the project.
+- Follow existing formatting and coding style.
+- Keep diffs small and reviewable.
+
+Before editing code, always show:
+
+1. What you are going to change.
+2. Why the change is needed.
+3. Which files will be touched.
+4. Which test will prove it works.
+5. Which command I should run.
+
+After each step, summarize:
+
+1. What was changed.
+2. Which tests were added or updated.
+3. Which commands should be run.
+4. Whether the step is complete.
+5. What the next vertical step will be.
+
+Important restrictions:
+
+- Never skip the planning phase.
+- Never implement multiple vertical steps at once.
+- Never work horizontally.
+- Never silently fix unrelated issues.
+- Never modify previous completed behavior without approval.
+- If a previous step has a bug or bad design, stop and ask for approval before changing it.
+- If the task is ambiguous, ask focused questions before implementing.
+- If you are not sure how the existing project works, inspect before editing.
+
+Your goal is not to generate a lot of code.
+Your goal is to produce safe, minimal, tested, maintainable Symfony code in small vertical slices.
+
+
+
+ANSWER:
+ 
+Pro tvoji situaci bych nešel čistě do JavaScriptu, pokud chceš použít lichess_db_puzzle.csv.zst.
+
+Ten soubor je velká databáze puzzle. Lichess uvádí, že puzzle dataset má miliony záznamů, je ve formátu CSV a obsahuje pole PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags. Dataset je pod Creative Commons CC0, takže ho můžeš použít i pro vlastní projekt.
+
+Doporučení technologie
+Nejlepší jednoduchá varianta pro tebe
+Část	Doporučení
+Backend	Symfony
+UI	Twig
+Interaktivita	StimulusJS
+Šachová logika v prohlížeči	chess.js
+Šachovnice	cm-chessboard nebo podobná JS board knihovna
+DB pro demo	SQLite
+DB pro větší verzi	PostgreSQL
+Import dat	Symfony Console Command + zstdcat
+Testy	PHPUnit
+
+chess.js je knihovna pro validaci tahů, generování tahů, práci s pozicí, check/checkmate/stalemate atd.
+cm-chessboard je lehká ES6 šachovnice bez závislostí, responzivní a SVG-renderovaná.
+
+Stačí JavaScript?
+Ano, ale jen pro velmi malé demo
+
+Například:
+
+ručně vybereš 20 puzzle
+uložíš je do puzzles.json
+uděláš HTML + JS aplikaci
+žádný import, žádná databáze
+
+To je dobré na rychlou ukázku UI.
+
+Ne, pokud chceš pracovat s lichess_db_puzzle.csv.zst
+
+Pro celý nebo větší dataset je čistý browser JS špatná volba, protože:
+
+.zst je komprimovaný soubor
+CSV má miliony řádků
+prohlížeč by neměl načítat celý dataset do paměti
+filtrování podle ratingu/tématu patří do backendu/DB
+
+Proto bych udělal Symfony mini aplikaci, ale držel ji jednoduchou.
+
+Ideální MVP aplikace
+
+Navrhuji aplikaci:
+
+Lichess Puzzle Trainer
+
+Funkce:
+
+Importuje omezený počet puzzle z CSV/ZST, třeba prvních 10 000.
+Uloží puzzle do DB.
+Zobrazí náhodné puzzle.
+Zobrazí šachovnici.
+Uživatel zahraje tah.
+Aplikace ověří, jestli tah odpovídá řešení.
+Později přidáš filtr podle ratingu a tématu.
+
+Důležité: Lichess uvádí, že Moves jsou v UCI formátu, FEN je pozice před soupeřovým tahem, a pozice pro hráče se má zobrazit až po aplikování prvního tahu z Moves. Druhý tah je začátek řešení hráče.
+
+Tohle je velmi důležité pro prompt, protože jinak Claude může špatně zobrazit počáteční pozici.
+
+Navržené vertikální kroky
+Krok 1 — CSV parser bez DB
+
+Cíl:
+
+umět přečíst jeden řádek Lichess CSV
+převést ho na DTO
+
+Test:
+
+vstup: ukázkový CSV řádek
+výstup: PuzzleImportRow
+
+Vrstva:
+
+test → service/parser → DTO
+Krok 2 — DB model + import command
+
+Cíl:
+
+vytvořit tabulku puzzle
+importovat prvních N puzzle z .csv.zst
+
+Vrstva:
+
+console command → import service → parser → repository → entity → DB
+Krok 3 — náhodné puzzle
+
+Cíl:
+
+endpoint /puzzles/random
+vybere puzzle z DB
+zobrazí základní stránku
+
+Vrstva:
+
+route/controller → service → repository → Twig
+Krok 4 — šachovnice
+
+Cíl:
+
+zobrazit puzzle na šachovnici
+aplikovat první tah z Moves
+hráči ukázat správnou startovní pozici
+
+Vrstva:
+
+Twig → Stimulus → chess.js → board UI
+Krok 5 — ověření tahu
+
+Cíl:
+
+uživatel udělá tah
+aplikace porovná UCI tah s očekávaným tahem
+zobrazí Correct / Wrong
+
+Vrstva:
+
+Stimulus UI → chess.js → puzzle state → feedback
+Krok 6 — filtry
+
+Cíl:
+
+rating od/do
+téma, např. fork, mate, endgame
+
+Vrstva:
+
+Form/Twig → controller → filter DTO → repository query → DB
+Doporučená DB struktura pro jednoduché MVP
+
+Nedělej hned normalizaci témat. Pro demo stačí string.
+
+puzzle
+- id
+- puzzle_id string unique
+- fen text
+- moves text
+- rating integer
+- rating_deviation integer
+- popularity integer
+- nb_plays integer
+- themes text
+- game_url text
+- opening_tags text nullable
+- created_at datetime
+
+Indexy:
+
+unique puzzle_id
+index rating
+index popularity
+
+Témata můžeš později normalizovat do puzzle_theme.
+
+Prompt pro Claude — konkrétní task prompt
+
+Tvůj dlouhý prompt bych nechal jako Project Instructions. K němu bych pro konkrétní aplikaci použil tento task prompt:
+
+Task:
+
+Build a small Symfony demo application called "Lichess Puzzle Trainer".
+
+The application should import chess puzzles from a local Lichess puzzle CSV ZST file and allow the user to solve random puzzles in the browser.
+
+Dataset:
+
+The local file is:
+
+/home/slavic/www/sachy/lichess_db_puzzle.csv.zst
+
+If the path does not exist, stop and ask me to confirm the correct path.
+
+The Lichess puzzle CSV format is:
+
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
+
+Important chess rules for this dataset:
+
+- Moves are in UCI format.
+- FEN is the position before the opponent makes their move.
+- The position shown to the player must be created by applying the first move from Moves to the FEN.
+- The player's first expected move is the second move from Moves.
+- Do not assume Moves are SAN.
+- Use a chess library to validate/apply moves on the frontend.
+
+Technology constraints:
+
+Backend:
+- Symfony
+- PHP 8.3 or the version used by the existing project
+- Doctrine ORM
+- Symfony Console Command for import
+- Twig for rendering
+- PHPUnit for tests
+
+Frontend:
+- Twig
+- StimulusJS
+- chess.js for chess move validation and FEN manipulation
+- A lightweight JavaScript chessboard library such as cm-chessboard
+- No React/Vue unless the existing project already uses it
+
+Database:
+- Use SQLite for the demo unless the project is already configured for another DB.
+- Do not over-normalize at the beginning.
+- Store Themes and OpeningTags as strings in the first MVP.
+- Add normalization only in a later approved vertical step.
+
+Import rules:
+
+- Do not load the whole CSV file into memory.
+- Stream the file line by line.
+- Use zstdcat or an equivalent streaming approach.
+- The import command must support a --limit option, for example:
+  php bin/console app:import-lichess-puzzles --limit=10000
+- The first implementation should import only a limited number of rows.
+- Skip invalid rows safely and report how many were skipped.
+- Do not hardcode the CSV path inside domain logic.
+- Prefer a parameter/env config for the CSV path.
+
+MVP scope:
+
+Vertical Step 1:
+Create and test a CSV row parser that converts one Lichess CSV row into a typed DTO.
+
+Vertical Step 2:
+Create the Puzzle entity, migration, repository, and import command.
+Import a limited number of puzzles into the database.
+
+Vertical Step 3:
+Create a random puzzle page.
+The page should load one random puzzle from the DB and render basic puzzle metadata.
+
+Vertical Step 4:
+Add the chessboard UI.
+The board must show the player position after applying the first move from Moves to the FEN.
+
+Vertical Step 5:
+Allow the user to make a move and validate it against the expected solution move.
+Show Correct/Wrong feedback.
+
+Vertical Step 6:
+Add simple filters:
+- minimum rating
+- maximum rating
+- theme contains
+
+Testing requirements:
+
+Use TDD for every vertical step:
+
+RED:
+- Write the smallest useful failing test first.
+- Explain what the test verifies.
+- Explain why it fails before implementation.
+- Provide the exact test command.
+
+GREEN:
+- Implement the smallest amount of code required to pass the test.
+- Provide the exact test command again.
+
+REFACTOR:
+- Only refactor if behavior does not change.
+- Keep all tests green.
+
+Test types:
+
+- Unit test for the CSV parser.
+- Integration test for repository/import behavior.
+- Functional test for the random puzzle page.
+- Frontend behavior should be kept simple and isolated in Stimulus.
+
+Architecture rules:
+
+- Controllers must stay thin.
+- Business logic belongs in services.
+- CSV parsing belongs in a dedicated parser/service.
+- Import orchestration belongs in an import service or command.
+- Repository handles DB queries only.
+- Twig must not contain business logic.
+- Stimulus should only handle board interaction and user feedback.
+
+Before writing code:
+
+1. Inspect the existing Symfony project structure.
+2. Identify existing PHP version, Symfony version, Doctrine setup, test setup, frontend setup, and asset system.
+3. Create a detailed vertical implementation plan.
+4. Do not implement anything until I approve the plan.
+
+For each vertical step, show:
+
+- Goal
+- Scope
+- Affected files
+- Tests to add/update
+- Exact command to run tests
+- Expected result
+
+Restrictions:
+
+- Do not implement multiple steps at once.
+- Do not work horizontally.
+- Do not create all entities/services/controllers upfront.
+- Do not modify unrelated files.
+- Do not introduce React, Vue, API Platform, Messenger, Docker, or external services unless I explicitly approve it.
+- Do not import the full dataset in the first implementation.
+- Keep the demo small, testable, and reviewable.
+Ještě bych do promptu přidal bezpečnostní brzdu
+
+Tohle je hodně užitečné u Claude/Codex:
+
+When you are unsure about an existing file, class, command, package, or project convention, do not guess. Ask me to provide the file or run a command.
+
+A ještě:
+
+Prefer small diffs. If a step would touch more than 5 files, stop and propose a smaller vertical slice.
+Moje finální doporučení
+
+Pro ukázkovou aplikaci:
+
+Symfony + Twig + Stimulus + chess.js + SQLite
+
+Nepoužíval bych čistý JavaScript, pokud chceš pracovat s .csv.zst.
+
+Nejdřív udělej malé MVP:
+
+import 10 000 puzzle → náhodné puzzle → šachovnice → ověření tahu
+
+Až to bude fungovat, přidej:
+
+filtry → progress uživatele → statistiky → normalizace themes
+
+-------------------------------------------------------------------------------
+
+PROMPT 2
+
+Vyber do promptu tecnhologie, které jsou pro claude ai nejjednodušší. Aplikace bude demo a nesmí používat technologie, které budou zpomalovat vývoj jejího MVP. Nesmíš vycházet z technologií, které momentálně používám, ale použít nejlepší možné technologie pro tento typ webové aplikace.
+
+
+
+ASNWER
+
+Pro nejrychlejší vygenerování bych z promptu odstranil skoro všechno, co nutí Claude přemýšlet o architektuře, alternativách a schvalování.
+
+Nejjednodušší technologie pro Claude
+
+Pro tvoji demo aplikaci bych vybral:
+
+Oblast	Volba
+Backend	Symfony
+Databáze	SQLite
+ORM	Doctrine
+UI	Twig
+Frontend JS	vanilla JavaScript
+CSS	obyčejné CSS v Twig/base layoutu
+Šachová logika	chess.js
+Šachovnice	cm-chessboard
+Import	Symfony Console Command
+Testy	jen parser/import, ne celé UI
+
+Pro rychlost bych nepoužíval Stimulus, React, Vue, Tailwind, Webpack Encore ani Docker. Symfony AssetMapper/Importmap umí moderní JS bez build systému, ale pokud chceš co nejméně zastavování, prompt níže dovoluje použít buď už existující asset setup, nebo jednoduchý CDN fallback. Symfony dokumentace popisuje AssetMapper/Importmaps jako způsob použití JS bez klasického build systému.
+
+chess.js je vhodná volba pro validaci tahů, práci s FEN a šachovou logiku v prohlížeči.
+cm-chessboard je lehká ES6 šachovnice bez závislostí, takže je dobrá pro malé demo.
+
+Finální prompt pro Claude
+
+Zkopíruj celý tento prompt:
+
+You are a senior Symfony developer.
+
+Answer me always in Czech.
+
+Your task is to build a working demo application as fast and simply as possible.
+
+Do not ask me architecture questions.
+Do not propose alternative technologies.
+Do not stop unless there is a hard blocker.
+Use the defaults below and implement the application.
+
+Project name:
+Lichess Puzzle Trainer
+
+Goal:
+Create a small Symfony application that imports Lichess chess puzzles from a local .csv.zst file and lets the user solve random puzzles in the browser.
+
+Dataset path:
+/home/slavic_revenant/www/sachy/lichess_db_puzzle.csv.zst
+
+If the file does not exist, create the code anyway, but clearly tell me that I must place the file there before running the import command.
+
+CSV format:
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
+
+Important Lichess puzzle rules:
+- Moves are in UCI format.
+- FEN is the position before the opponent move.
+- To show the puzzle to the player, apply the first move from Moves to the FEN.
+- The player’s first expected move is the second move from Moves.
+- Do not treat Moves as SAN.
+
+Use exactly this simple technology stack:
+- Symfony
+- Doctrine ORM
+- SQLite
+- Twig
+- vanilla JavaScript
+- chess.js
+- cm-chessboard
+- Symfony Console Command
+- PHPUnit only for parser/import logic
+
+Do not use:
+- React
+- Vue
+- Stimulus, unless it is already configured and clearly easier
+- Tailwind
+- Webpack Encore
+- Messenger
+- API Platform
+- Docker
+- external APIs
+- complex frontend architecture
+- full dataset import in the first version
+
+Frontend rule:
+Use the simplest frontend approach available in the project.
+
+Preferred frontend order:
+1. If Symfony AssetMapper/importmap is already installed, use it.
+2. If not, use simple Twig script tags or CDN imports.
+3. Do not stop to redesign the frontend build system.
+
+Database:
+Use SQLite.
+
+Create a simple Puzzle entity:
+
+- id
+- puzzleId
+- fen
+- moves
+- rating
+- ratingDeviation
+- popularity
+- nbPlays
+- themes
+- gameUrl
+- openingTags
+
+Do not normalize themes.
+Do not create user accounts.
+Do not create progress tracking.
+Do not add statistics.
+Do not over-engineer.
+
+Required features:
+
+1. Import puzzles from the dataset into SQLite.
+2. Import command:
+
+   php bin/console app:import-lichess-puzzles --limit=10000
+
+3. The import must stream the file.
+4. Do not load the full CSV into memory.
+5. Use zstdcat or zstd -dc.
+6. Skip invalid rows.
+7. Print imported and skipped counts.
+8. Create a page:
+
+   /puzzle/random
+
+9. The page shows one random puzzle.
+10. The page shows:
+    - rating
+    - themes
+    - board
+    - result message
+    - Next puzzle button
+
+11. The board must show the position after applying the first move from Moves to the FEN.
+12. The user must be able to make one move.
+13. Compare the user move with the second move from Moves.
+14. Show:
+    - Correct
+    - Wrong
+
+Keep the application minimal.
+
+Architecture:
+- Controller should be thin.
+- CSV parsing should be in a dedicated parser class.
+- Import logic should be in a service or command.
+- Repository should only query the database.
+- Twig should only render data.
+- JavaScript should handle only the board and move validation.
+
+Testing:
+Keep testing lightweight.
+
+Write tests only for:
+1. CSV row parser.
+2. Import row handling / invalid row skipping if practical.
+
+Do not block the demo on full frontend tests.
+
+Implementation order:
+
+Step 1:
+Create CSV parser DTO/service and a PHPUnit test.
+
+Step 2:
+Create Puzzle entity, migration, repository and SQLite setup if needed.
+
+Step 3:
+Create import command:
+php bin/console app:import-lichess-puzzles --limit=10000
+
+Step 4:
+Create random puzzle route/controller/template.
+
+Step 5:
+Add chess.js and cm-chessboard UI.
+
+Step 6:
+Add browser-side move validation.
+
+Important:
+Implement the steps directly.
+Do not wait for my approval between steps.
+Do not ask unnecessary questions.
+Make reasonable assumptions.
+If something is missing, choose the simplest Symfony default.
+If a dependency is missing, add the minimum installation command.
+If a command should be run, show it clearly.
+If the project structure differs, adapt to the existing structure.
+
+At the end, give me:
+1. List of created/modified files.
+2. Commands to run.
+3. Import command.
+4. URL to open.
+5. Known limitations.
+Ještě tvrdší věta proti zastavování
+
+Přidej na konec promptu, pokud Claude často stojí a ptá se:
+
+Do not pause for approval.
+Do not ask "Should I proceed?"
+Proceed with the simplest safe implementation.
+Only stop if code generation is impossible without missing project files.
+Moje praktické doporučení
+
+Pro první demo bych netrval na plném TDD u každého kroku. To je kvalitnější, ale zpomalí to vývoj.
+
+Nejrychlejší rozumný kompromis:
+
+Testuj parser a import.
+UI udělej jednoduše, aby fungovalo.
+
+Největší riziko není Symfony. Největší riziko je správně pochopit:
+
+FEN → aplikovat první UCI tah → zobrazit pozici → druhý UCI tah je odpověď hráče
+
+---------------------------------------------------------------------
+
+PROMPT 3 
+
+Uprav tento prompt aby CLaude AI mohl vypracovat demo webovou aplikaci ze souboru lichess_db_puzzle.csv.zsv Demo aplikce musí být hotová rychle a efektivně.
+
+
+Build a small demo application called "Lichess Puzzle Trainer".
+
+The application should import chess puzzles from a local Lichess puzzle CSV ZST file and allow the user to solve random puzzles in the browser.
+
+Dataset:
+
+The local file is:
+
+/home/slavic_revenant/www/sachy/lichess_db_puzzle.csv.zst 
+
+If the path does not exist, stop and ask me to confirm the correct path.
+
+The Lichess puzzle CSV format is:
+
+PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTags
+
+Important chess rules for this dataset:
+
+- Moves are in UCI format.
+- FEN is the position before the opponent makes their move.
+- The position shown to the player must be created by applying the first move from Moves to the FEN.
+- The player's first expected move is the second move from Moves.
+- Do not assume Moves are SAN.
+- Use a chess library to validate/apply moves on the frontend.
+
+Technology constraints:
+
+Backend:
+- Symfony
+- PHP 8.3 or the version used by the existing project
+- Doctrine ORM
+- Symfony Console Command for import
+- Twig for rendering
+- PHPUnit for tests
+
+Frontend:
+- Twig
+- StimulusJS
+- chess.js for chess move validation and FEN manipulation
+- A lightweight JavaScript chessboard library such as cm-chessboard
+- No React/Vue unless the existing project already uses it
+
+Database:
+- Use SQLite for the demo unless the project is already configured for another DB.
+- Do not over-normalize at the beginning.
+- Store Themes and OpeningTags as strings in the first MVP.
+- Add normalization only in a later approved vertical step.
+
+Import rules:
+
+- Do not load the whole CSV file into memory.
+- Stream the file line by line.
+- Use zstdcat or an equivalent streaming approach.
+- The import command must support a --limit option, for example:
+  php bin/console app:import-lichess-puzzles --limit=10000
+- The first implementation should import only a limited number of rows.
+- Skip invalid rows safely and report how many were skipped.
+- Do not hardcode the CSV path inside domain logic.
+- Prefer a parameter/env config for the CSV path.
+
+MVP scope:
+
+Vertical Step 1:
+Create and test a CSV row parser that converts one Lichess CSV row into a typed DTO.
+
+Vertical Step 2:
+Create the Puzzle entity, migration, repository, and import command.
+Import a limited number of puzzles into the database.
+
+Vertical Step 3:
+Create a random puzzle page.
+The page should load one random puzzle from the DB and render basic puzzle metadata.
+
+Vertical Step 4:
+Add the chessboard UI.
+The board must show the player position after applying the first move from Moves to the FEN.
+
+Vertical Step 5:
+Allow the user to make a move and validate it against the expected solution move.
+Show Correct/Wrong feedback.
+
+Vertical Step 6:
+Add simple filters:
+- minimum rating
+- maximum rating
+- theme contains
+
+Testing requirements:
+
+Use TDD for every vertical step:
+
+RED:
+- Write the smallest useful failing test first.
+- Explain what the test verifies.
+- Explain why it fails before implementation.
+- Provide the exact test command.
+
+GREEN:
+- Implement the smallest amount of code required to pass the test.
+- Provide the exact test command again.
+
+REFACTOR:
+- Only refactor if behavior does not change.
+- Keep all tests green.
+
+Test types:
+
+- Unit test for the CSV parser.
+- Integration test for repository/import behavior.
+- Functional test for the random puzzle page.
+- Frontend behavior should be kept simple and isolated in Stimulus.
+
+Architecture rules:
+
+- Controllers must stay thin.
+- Business logic belongs in services.
+- CSV parsing belongs in a dedicated parser/service.
+- Import orchestration belongs in an import service or command.
+- Repository handles DB queries only.
+- Twig must not contain business logic.
+- Stimulus should only handle board interaction and user feedback.
+
+Before writing code:
+
+1. Inspect the existing Symfony project structure.
+2. Identify existing PHP version, Symfony version, Doctrine setup, test setup, frontend setup, and asset system.
+3. Create a detailed vertical implementation plan.
+4. Do not implement anything until I approve the plan.
+
+For each vertical step, show:
+
+- Goal
+- Scope
+- Affected files
+- Tests to add/update
+- Exact command to run tests
+- Expected result
+
+Restrictions:
+
+- Do not implement multiple steps at once.
+- Do not work horizontally.
+- Do not create all entities/services/controllers upfront.
+- Do not modify unrelated files.
+- Do not introduce React, Vue, API Platform, Messenger, Docker, or external services unless I explicitly approve it.
+- Do not import the full dataset in the first implementation.
+- Keep the demo small, testable, and reviewable.
+
+Answer me always in czech
+
+Musíme použít technologie, aby nám claude.ai vygeneroval aplikaci co nejrychleji a nejjednodušeji. Ignoruj technologie, které používám. Napiš prompt, aby se to vyřešilo co nejrychleji a nejefektivněji.
+
+
+ANSWER
+
+Tvůj původní prompt je příliš komplexní a “enterprise” styl → to je přesně důvod, proč se Claude AI bude ptát, plánovat a brzdit.
+Pokud chceš rychlé vygenerování hotové demo aplikace bez otázek, musíš:
+
+
+odstranit TDD proces
+
+
+odstranit Symfony/Doctrine rigidní architekturu
+
+
+odstranit vertikální plánování
+
+
+dát mu jednoznačný stack + jasný output
+
+
+zakázat otázky
+
+
+Níže máš optimalizovaný prompt pro rychlé vygenerování MVP:
+
+🚀 FINAL PROMPT PRO CLAUDE (rychlý, bez keců, generuj hned)
+Build a COMPLETE working demo web application called "Lichess Puzzle Trainer".IMPORTANT:Do NOT ask any questionsDo NOT ask for confirmationGenerate the full working solution immediatelyKeep everything as simple and minimal as possibleFocus on speed of implementation, not architecture purityTECH STACK (MANDATORY – DO NOT CHANGE):Backend:PHP (plain PHP 8.2+)NO Symfony, NO frameworksSingle entry point (index.php)Simple file-based routingFrontend:Vanilla JavaScriptchess.js (for move validation)cm-chessboard (for UI)Database:SQLite (file-based)Use PDOAuto-create DB if not existsDATASET:File path:/home/slavic_revenant/www/sachy/lichess_db_puzzle.csv.zstIf file does not exist:STOP and output: "FILE NOT FOUND – PLEASE CONFIRM PATH"CSV columns:PuzzleId,FEN,Moves,Rating,RatingDeviation,Popularity,NbPlays,Themes,GameUrl,OpeningTagsIMPORT LOGIC:Use streaming (DO NOT load whole file into memory)Use shell command: zstdcatParse line by lineImport ONLY first 5000 rowsSkip invalid rows safelyStore data in SQLiteTable structure (simple):idfenmovesratingthemesCHESS RULES (CRITICAL):Moves are in UCI formatFEN is BEFORE opponent moveApply FIRST move from Moves to FENShow resulting position to userExpected correct move = SECOND moveAPPLICATION FEATURES (MVP ONLY):Import script:CLI command: php import.phpCreates DB and imports dataWeb page:Load random puzzle from DBShow chessboardShow rating + themesInteraction:User makes a moveValidate using chess.jsCompare with expected moveShow:"Correct""Wrong"Button:"Next puzzle"PROJECT STRUCTURE:/index.php/import.php/db.sqlite/assets/chess.jscm-chessboard.jsstyles.cssOUTPUT FORMAT:Full file treeFULL code for every fileExact instructions:how to run importhow to start server (php -S)No explanations, only necessary commentsCONSTRAINTS:Keep code SHORT and SIMPLENo OOP overengineeringNo design patternsNo testsNo DockerNo frameworksNo abstractions unless absolutely neededGOAL:Working demo in under 5 minutes setup time.
+
+⚠️ Co jsi tím vyřešil
+Tímhle promptem jsi:
+❌ odstranil:
+
+
+Symfony složitost
+
+
+Doctrine overhead
+
+
+TDD blokování
+
+
+plánování → Claude nebude “thinking mode”
+
+
+✅ získal:
+
+
+okamžité generování kódu
+
+
+minimální počet souborů
+
+
+funkční demo během pár minut
+
+
+
+🧠 Důležitý insight (pro tebe jako dev + pentester)
+Claude má tendenci:
+
+
+přemýšlet → když je architektura složitá
+
+
+generovat → když je zadání “script-like”
+
+
+👉 Tenhle prompt ho nutí chovat se jako:
+
+code generator, ne architekt
+
+
+Pokud chceš další level
+Můžu ti udělat verzi:
+
+
+⚡ Symfony verze (ale stále rychlá)
+
+
+⚡ nebo verzi optimalizovanou pro AI coding (Copilot-style)
+
+
+⚡ nebo verzi přímo pro penetration testing playground (např. zranitelnosti)
+
+
+Stačí říct 👍
+
+
